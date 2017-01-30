@@ -1,5 +1,12 @@
 #!/usr/bin/python
 
+# This is a customized version of a Python script found in the YouTube
+# documentation for doing resumable uploads. I've added a few additional
+# configuration options.
+#
+# Original script here:
+# https://developers.google.com/youtube/v3/guides/uploading_a_video
+
 import httplib
 import httplib2
 import os
@@ -129,11 +136,11 @@ def initialize_upload(youtube, options):
     media_body=MediaFileUpload(options.file, chunksize=-1, resumable=True)
   )
 
-  resumable_upload(youtube, insert_request)
+  resumable_upload(youtube, insert_request, options.playlist)
 
 # This method implements an exponential backoff strategy to resume a
 # failed upload.
-def resumable_upload(youtube, insert_request):
+def resumable_upload(youtube, insert_request, playlist_id):
   response = None
   error = None
   retry = 0
@@ -143,7 +150,8 @@ def resumable_upload(youtube, insert_request):
       status, response = insert_request.next_chunk()
       if 'id' in response:
         print "Video id '%s' was successfully uploaded." % response['id']
-        add_playlist_item(youtube, "PL1cNOU1HfaMI8ha3e3iUsocQuoXH70CvF", response['id'])
+        if playlist_id:
+          add_playlist_item(youtube, playlist_id, response['id'])
       else:
         exit("The upload failed with an unexpected response: %s" % response)
     except HttpError, e:
@@ -207,10 +215,6 @@ def add_playlist_item(youtube, playlist_id, video_id):
       time.sleep(sleep_seconds)
 
 if __name__ == '__main__':
-#  youtube = get_authenticated_service(None)
-#  add_playlist_item(youtube, "PL1cNOU1HfaMI8ha3e3iUsocQuoXH70CvF", "dyrKunPVU-w")
-#  add_playlist_item(youtube, "PL1cNOU1HfaMI8ha3e3iUsocQuoXH70CvF", "09XfuAmyaAc")
-#else:
   argparser.add_argument("--file", required=True, help="Video file to upload")
   argparser.add_argument("--title", help="Video title", default="Test Title")
   argparser.add_argument("--description", help="Video description",
@@ -228,6 +232,8 @@ if __name__ == '__main__':
   argparser.add_argument("--longitude", help="Location longitude", default=""),
   argparser.add_argument("--date", help="Recording date (YYYY-MM-DDTHH:mm:ss.xxxZ)",
     default="")
+  argparser.add_argument("--playlist", help="Optional playlist ID to add the new video to",
+    default=None)
   args = argparser.parse_args()
 
   if not os.path.exists(args.file):
